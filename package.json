@@ -24,6 +24,7 @@
     "@mikro-orm/core": "^4.5.10",
     "@mikro-orm/postgresql": "^4.5.10",
     "apollo-server-express": "^2",
+    "argon2": "^0.28.4",
     "express": "^4.17.2",
     "graphql": "15.3.0",
     "reflect-metadata": "^0.1.13",

@@ -6,24 +6,48 @@ import express from 'express'
 import {ApolloServer} from 'apollo-server-express'
 import {buildSchema} from 'type-graphql'
 import { HelloResolver } from "./resolvers/hello";
-import { Post } from "./entities/Post";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from './resolvers/user';
-
+import session from "express-session";
 
 const main = async () => {
+  
+  const orm = await MikroORM.init(mikroConfig);
+  await orm.getMigrator().up();
+  const app = express();
+  
+  let RedisStore = require("connect-redis")(session)
+  const { createClient } = require("redis")
+  let redisClient = createClient({ 
+    legacyMode: true, 
+  })
+  await redisClient.connect().catch(console.error)
+  
+  app.use(
+  session({
+    name: 'qid',
+    store: new RedisStore({ 
+      client: redisClient,
+      disableTouch: true,
+    }),
+    cookie: {
+      maxAge: 1000*60*60*24*365*10,//10 years
+      httpOnly: true,
+      sameSite: 'lax', //csrf
+      secure: __prod__, //cookie works only in https
+    },
+    saveUninitialized: false,
+    secret: "keyboard cat",
+    resave: false,
+  })
+)
 
-const orm = await MikroORM.init(mikroConfig);
-await orm.getMigrator().up();
-const app = express();
-const post = orm.em.create(Post,{title:"my first post"});
-await orm.em.persistAndFlush(post);
 const apolloServer = new ApolloServer({
   schema: await buildSchema({
     resolvers: [HelloResolver,PostResolver,UserResolver],
     validate: false,
   }),
-  context: () => ({em: orm.em})
+  context: ({req,res}) => ({em: orm.em , req , res})
 })
 
 apolloServer.applyMiddleware({ app });
